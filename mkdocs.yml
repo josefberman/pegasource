@@ -1,0 +1,46 @@
+site_name: Pegasource
+site_description: "Offline-capable Python toolkit for PCAP analysis, geographic functions, and time-series forecasting"
+site_author: "Josef Berman"
+repo_url: https://github.com/josefberman/Pegasource # Placeholder/assumption
+repo_name: josefberman/Pegasource
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.] # Search the root of the project for modules
+          options:
+            show_root_heading: true
+            show_source: true
+            show_bases: true
+            heading_level: 2
+            docstring_style: numpy
+            merge_init_into_class: true
+
+nav:
+  - Home: index.md
+  - PCAP Analysis: pcap.md
+  - Geographic Functions: geo.md
+  - Time-Series Prediction: timeseries.md
