@@ -30,7 +30,7 @@ plugins:
       default_handler: python
       handlers:
         python:
-          paths: [.] # Search the root of the project for modules
+          paths: ["."] # Search the root of the project for modules
           options:
             show_root_heading: true
             show_source: true

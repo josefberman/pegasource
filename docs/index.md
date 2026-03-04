@@ -10,18 +10,18 @@ This guide provides an in-depth look at every module, its purpose, and examples 
 
 1. [Installation](#installation)
 2. [Module: PCAP (`pegasource.pcap`)](pcap.md)
-   - [Reading & Summarizing](pcap.md#pegasource.pcap.reader.read_pcap)
-   - [Statistics](pcap.md#pegasource.pcap.stats.protocol_distribution)
-   - [Pattern & Anomaly Detection](pcap.md#pegasource.pcap.patterns.detect_port_scan)
-   - [Reporting](pcap.md#pegasource.pcap.report.generate_report)
+   - [Reading & Summarizing](pcap.md#pegasource.pcap.read_pcap)
+   - [Statistics](pcap.md#pegasource.pcap.protocol_distribution)
+   - [Pattern & Anomaly Detection](pcap.md#pegasource.pcap.detect_port_scan)
+   - [Reporting](pcap.md#pegasource.pcap.generate_report)
 3. [Module: Geography (`pegasource.geo`)](geo.md)
-   - [Distance Calculations](geo.md#pegasource.geo.distance.haversine)
-   - [Coordinate Projections](geo.md#pegasource.geo.projection.wgs84_to_itm)
-   - [Road Vectorizer](geo.md#pegasource.geo.vectorizer.build_graph)
-   - [Israel Road Network](geo.md#pegasource.geo.israel_roads.load_israel_graph)
+   - [Distance Calculations](geo.md#pegasource.geo.haversine)
+   - [Coordinate Projections](geo.md#pegasource.geo.wgs84_to_itm)
+   - [Road Vectorizer](geo.md#pegasource.geo.build_graph)
+   - [Israel Road Network](geo.md#pegasource.geo.load_israel_graph)
 4. [Module: Time-Series (`pegasource.timeseries`)](timeseries.md)
-   - [Auto Forecaster (SARIMAX & Fallbacks)](timeseries.md#pegasource.timeseries.auto.AutoForecaster)
-   - [Utilities](timeseries.md#pegasource.timeseries.utils.detect_seasonality)
+   - [Auto Forecaster (SARIMAX & Fallbacks)](timeseries.md#pegasource.timeseries.AutoForecaster)
+   - [Utilities](timeseries.md#pegasource.timeseries.detect_seasonality)
 
 ---
 
