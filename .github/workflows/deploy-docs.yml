@@ -29,4 +29,12 @@ jobs:
         run: pip install -e ".[dev]"
         
       - name: Deploy to GitHub Pages
-        run: mkdocs gh-deploy --force
+        run: mkdocs gh-deploy --force --remote-branch gh-pages --remote-name origin --message "Deploy MkDocs" --clean --verbose --site-dir site
+        # To deploy to gh-pages/docs, we'll build it first into site and then use github-pages-deploy-action
+        
+      - name: Deploy to gh-pages/docs
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          destination_dir: docs
