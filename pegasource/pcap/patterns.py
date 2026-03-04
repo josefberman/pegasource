@@ -233,8 +233,7 @@ def detect_dns_anomalies(packets: list) -> list[dict[str, Any]]:
                 nxdomain_count += 1
 
         # Queries
-        qdcount = int(dns.qdcount) if dns.qdcount is not None else 0
-        if qr == 0 and qdcount > 0:
+        if qr == 0 and dns.qd is not None:
             try:
                 qname = dns.qd.qname.decode("utf-8", errors="ignore").rstrip(".")
             except Exception:

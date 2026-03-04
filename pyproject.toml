@@ -44,7 +44,7 @@ dependencies = [
 dev = [
     "pytest>=7.4",
     "pytest-cov",
-    "mkdocs",
+    "mkdocs<2",
     "mkdocs-material",
     "mkdocstrings[python]",
 ]
