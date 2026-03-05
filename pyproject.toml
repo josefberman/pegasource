@@ -4,12 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pegasource"
-version = "0.1.0"
+version = "0.1.1"
 description = "Offline-capable toolkit: PCAP analysis, geographic functions, and time-series prediction"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Josef Berman" }]
+urls = { Documentation = "https://josefberman.github.io/pegasource/", Source = "https://github.com/josefberman/Pegasource" }
 keywords = ["pcap", "network", "geo", "timeseries", "israel", "roads"]
 classifiers = [
     "Development Status :: 3 - Alpha",

@@ -281,9 +281,8 @@ def _build_graph_from_pbf(pbf_path: str) -> nx.MultiDiGraph:
         "primary", "primary_link",
         "secondary", "secondary_link",
         "tertiary", "tertiary_link",
-        "unclassified", "residential",
-        "living_street", "road",
-        "service",
+        # Excluding "unclassified", "residential", "living_street", "service"
+        # to keep the graph size under 100 MB for GitHub limits.
     }
 
     # Speed defaults by highway type (km/h)
@@ -297,35 +296,29 @@ def _build_graph_from_pbf(pbf_path: str) -> nx.MultiDiGraph:
         "living_street": 20, "road": 50, "service": 20,
     }
 
-    class NodeCollector(osmium.SimpleHandler):  # type: ignore
+    class WayCollector(osmium.SimpleHandler):  # type: ignore
         def __init__(self):
             super().__init__()
-            self.nodes: dict[int, tuple[float, float]] = {}
-            self.way_nodes: set[int] = set()
-
-        def way(self, w):
-            hw = w.tags.get("highway", "")
-            if hw in _ROAD_TYPES:
-                for n in w.nodes:
-                    self.way_nodes.add(n.ref)
-
-        def node(self, n):
-            if n.id in self.way_nodes:
-                self.nodes[n.id] = (n.location.lat, n.location.lon)
-
-    class WayCollector(osmium.SimpleHandler):  # type: ignore
-        def __init__(self, node_coords):
-            super().__init__()
-            self.node_coords = node_coords
             self.ways: list[dict] = []
+            self.nodes: dict[int, tuple[float, float]] = {}
 
         def way(self, w):
             hw = w.tags.get("highway", "")
             if hw not in _ROAD_TYPES:
                 return
-            node_refs = [n.ref for n in w.nodes if n.ref in self.node_coords]
+            
+            node_refs = []
+            for n in w.nodes:
+                try:
+                    lat, lon = n.location.lat, n.location.lon
+                    self.nodes[n.ref] = (lat, lon)
+                    node_refs.append(n.ref)
+                except osmium.InvalidLocationError:
+                    pass
+
             if len(node_refs) < 2:
                 return
+
             self.ways.append({
                 "nodes": node_refs,
                 "highway": hw,
@@ -334,22 +327,19 @@ def _build_graph_from_pbf(pbf_path: str) -> nx.MultiDiGraph:
                 "maxspeed": w.tags.get("maxspeed", ""),
             })
 
-    # Two-pass: collect all node IDs used by roads, then their coords
-    print("  Pass 1: collecting road way-node IDs...")
-    nc = NodeCollector()
-    nc.apply_file(pbf_path, locations=True)
+    print("  Parsing OSM data (ways and node locations)...")
+    wc = WayCollector()
+    wc.apply_file(pbf_path, locations=True)
 
-    print(f"  Found {len(nc.nodes):,} road nodes.")
-    print("  Pass 2: collecting ways...")
-    wc = WayCollector(nc.nodes)
-    wc.apply_file(pbf_path)
+    print(f"  Found {len(wc.nodes):,} road nodes.")
     print(f"  Found {len(wc.ways):,} road ways.")
+
 
     # Build graph
     import re as _re
     G = nx.MultiDiGraph()
 
-    for nid, (lat, lon) in nc.nodes.items():
+    for nid, (lat, lon) in wc.nodes.items():
         G.add_node(nid, lat=lat, lon=lon)
 
     for way in wc.ways:
@@ -367,8 +357,8 @@ def _build_graph_from_pbf(pbf_path: str) -> nx.MultiDiGraph:
         for u, v in zip(node_refs, node_refs[1:]):
             if u not in G or v not in G:
                 continue
-            lat1, lon1 = nc.nodes[u]
-            lat2, lon2 = nc.nodes[v]
+            lat1, lon1 = wc.nodes[u]
+            lat2, lon2 = wc.nodes[v]
             # Haversine inline
             import math
             dφ = math.radians(lat2 - lat1)
