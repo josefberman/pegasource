@@ -1,14 +1,15 @@
 """High-level evaluation API: run estimators, compare to ground truth, save artifacts.
 
-**Method registry** (``METHOD_REGISTRY``): graph stitchers ``dijkstra`` / ``astar``,
-``hmm``, Kalman-family filters ``kf`` / ``ekf`` / ``ukf`` / ``particle``, ``gnn``, plus
-``lstm`` / ``transformer`` implemented in this file.  Supervised keys ``lstm``,
-``transformer``, ``gnn`` require a real ``*_true_path.csv`` (see ``METHODS_REQUIRING_GROUND_TRUTH``).
+Individual estimators are exposed as functions in :mod:`pegasource.path_estimation.method_estimators`
+(``estimate_hmm``, ``estimate_kf``, …) so each path loads only its own dependencies.
+Observations-only entry points use ``estimate_*_obs_only`` (e.g. :func:`~pegasource.path_estimation.method_estimators.estimate_kf_obs_only`)
+or :func:`estimate_paths_only` for multiple methods.
+
+**Method registry** (``METHOD_REGISTRY``) mirrors :data:`~pegasource.path_estimation.method_estimators.METHOD_NAME_TO_FUNC`.
 
 **Typical entry points**
 
-- :func:`run_evaluation` — loads CSVs and the default projected OSM graph from
-  :func:`~pegasource.path_estimation.graph_utils.get_projected_graph`, writes
+- :func:`run_evaluation` — loads CSVs and the default projected OSM graph, writes
   ``metrics.json`` and figures.
 - :func:`evaluate_path_estimation` — same pipeline but you pass the ``road_graph``.
 - :func:`estimate_paths_only` — no true path file; cannot run supervised methods.
@@ -26,99 +27,21 @@ from typing import Any, Callable, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from .filters import (
-    estimate_ekf_fused,
-    estimate_kf_gps,
-    estimate_particle_filter,
-    estimate_ukf_fused,
-)
-from .graph_stitch import estimate_graph_stitch
-from .gnn.estimate import estimate_gnn
-from .graph_utils import get_projected_graph
-from .hmm_map_match import estimate_hmm_map_match
 from .io import (
     align_times_to_true,
     load_observations_csv,
     load_true_path_csv,
-    stub_true_path_from_observations,
 )
 from .metrics import compute_all_metrics
-from .nn.lstm_model import predict_lstm_at_times, train_lstm
-from .nn.transformer_model import predict_transformer_at_times, train_transformer
+from .method_estimators import METHOD_NAME_TO_FUNC, METHOD_NAME_TO_OBS_ONLY_FUNC
 from .types import EstimationResult
-from .viz import plot_estimation_enu, plot_estimation_map
 
 EstimatorFn = Callable[..., EstimationResult]
 
 # Supervised / needs real ``true_df`` (training labels or GNN node targets).
 METHODS_REQUIRING_GROUND_TRUTH: frozenset[str] = frozenset({"lstm", "transformer", "gnn"})
 
-METHOD_REGISTRY: Dict[str, EstimatorFn] = {
-    "dijkstra": lambda o, t, G, r: estimate_graph_stitch(o, t, G, r, mode="dijkstra"),
-    "astar": lambda o, t, G, r: estimate_graph_stitch(o, t, G, r, mode="astar"),
-    "hmm": estimate_hmm_map_match,
-    "kf": estimate_kf_gps,
-    "ekf": estimate_ekf_fused,
-    "ukf": estimate_ukf_fused,
-    "particle": estimate_particle_filter,
-    "gnn": estimate_gnn,
-}
-
-
-def _estimate_lstm(
-    obs_df: pd.DataFrame,
-    true_df: pd.DataFrame,
-    G,
-    rng: np.random.Generator,
-    device: Optional[str] = None,
-) -> EstimationResult:
-    dev = torch_device(device)
-    model, ds = train_lstm(obs_df, true_df, dev)
-    times_s, xy = predict_lstm_at_times(model, obs_df, true_df, dev, ds)
-    return EstimationResult(
-        times_s=times_s,
-        east_m=xy[:, 0],
-        north_m=xy[:, 1],
-        meta={"method": "lstm"},
-    )
-
-
-def _estimate_transformer(
-    obs_df: pd.DataFrame,
-    true_df: pd.DataFrame,
-    G,
-    rng: np.random.Generator,
-    device: Optional[str] = None,
-) -> EstimationResult:
-    dev = torch_device(device)
-    model, ds = train_transformer(obs_df, true_df, dev)
-    times_s, xy = predict_transformer_at_times(model, obs_df, true_df, dev, ds)
-    return EstimationResult(
-        times_s=times_s,
-        east_m=xy[:, 0],
-        north_m=xy[:, 1],
-        meta={"method": "transformer"},
-    )
-
-
-def torch_device(name: Optional[str] = None):
-    """Return a ``torch.device``, defaulting to CUDA when available.
-
-    Parameters
-    ----------
-    name : str, optional
-        If given (e.g. ``"cuda"``, ``"cpu"``), that device is returned. If ``None``,
-        uses CUDA when :func:`torch.cuda.is_available` else CPU.
-
-    Returns
-    -------
-    torch.device
-    """
-    import torch as _torch
-
-    if name:
-        return _torch.device(name)
-    return _torch.device("cuda" if _torch.cuda.is_available() else "cpu")
+METHOD_REGISTRY: Dict[str, EstimatorFn] = dict(METHOD_NAME_TO_FUNC)
 
 
 def _run_methods(
@@ -132,21 +55,17 @@ def _run_methods(
 ) -> Dict[str, Any]:
     """Run each method; values are :class:`EstimationResult` or ``{"error": ...}``."""
     rng = np.random.default_rng(seed)
-    dev = torch_device(device)
+    neural = frozenset({"lstm", "transformer", "gnn"})
     out: Dict[str, Any] = {}
     for name in methods:
         name = name.strip().lower()
         try:
-            if name == "lstm":
-                res = _estimate_lstm(obs_df, true_df, G, rng, device=device)
-            elif name == "transformer":
-                res = _estimate_transformer(obs_df, true_df, G, rng, device=device)
-            elif name == "gnn":
-                res = estimate_gnn(obs_df, true_df, G, rng, device=dev)
+            fn = METHOD_REGISTRY.get(name)
+            if fn is None:
+                raise KeyError(f"Unknown method: {name}")
+            if name in neural:
+                res = fn(obs_df, true_df, G, rng, device=device)
             else:
-                fn = METHOD_REGISTRY.get(name)
-                if fn is None:
-                    raise KeyError(f"Unknown method: {name}")
                 res = fn(obs_df, true_df, G, rng)
         except Exception as exc:
             out[name] = {"error": str(exc)}
@@ -168,6 +87,8 @@ def _run_evaluation_core(
     seed: int = 0,
 ) -> Dict[str, Dict]:
     """Run estimators; compute metrics. Optionally write ``metrics.json`` and figures."""
+    from .viz import plot_estimation_enu, plot_estimation_map
+
     _, true_xy = align_times_to_true(true_df)
     raw = _run_methods(obs_df, true_df, G, methods, device=device, seed=seed)
     out: Dict[str, Dict] = {}
@@ -223,7 +144,6 @@ def estimate_paths_only(
     output_dir: Optional[Path] = None,
     plot: bool = False,
     plot_map: bool = False,
-    device: Optional[str] = None,
     seed: int = 0,
 ) -> Dict[str, Any]:
     """Estimate paths from observations only (no ground-truth CSV).
@@ -250,8 +170,6 @@ def estimate_paths_only(
         If True and ``output_dir`` is set, writes ENU overlays **without** a true path polyline.
     plot_map : bool, default False
         Must stay False (no real lon/lat); raises ``ValueError`` otherwise.
-    device : str, optional
-        Passed to neural estimators (unused for filter-only methods).
     seed : int, default 0
         RNG seed for stochastic methods.
 
@@ -277,13 +195,26 @@ def estimate_paths_only(
         raise ValueError(
             "plot_map needs a real true path with lon/lat. Use evaluate_path_estimation()."
         )
+    from .viz import plot_estimation_enu
+
     obs_df = load_observations_csv(observations_csv)
-    true_df = stub_true_path_from_observations(obs_df, hz=output_hz)
-    raw = _run_methods(obs_df, true_df, road_graph, names, device=device, seed=seed)
+    rng = np.random.default_rng(seed)
+    raw: Dict[str, Any] = {}
+    for name in names:
+        try:
+            fn = METHOD_NAME_TO_OBS_ONLY_FUNC.get(name)
+            if fn is None:
+                raise KeyError(f"Unknown method: {name}")
+            raw[name] = fn(obs_df, road_graph, rng, output_hz=output_hz)
+        except Exception as exc:
+            raw[name] = {"error": str(exc)}
     fig_dir = (output_dir / "figures") if output_dir is not None else None
     if fig_dir is not None:
         fig_dir.mkdir(parents=True, exist_ok=True)
     if plot and fig_dir is not None:
+        from .io import stub_true_path_from_observations
+
+        true_df = stub_true_path_from_observations(obs_df, hz=output_hz)
         for name, val in raw.items():
             if isinstance(val, EstimationResult):
                 plot_estimation_enu(
@@ -405,6 +336,8 @@ def run_evaluation(
     --------
     evaluate_path_estimation : supply your own ``road_graph``.
     """
+    from .graph_utils import get_projected_graph
+
     obs_df = load_observations_csv(observations_csv)
     true_df = load_true_path_csv(true_path_csv)
     G = get_projected_graph()
