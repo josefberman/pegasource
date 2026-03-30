@@ -404,7 +404,6 @@ def run_evaluation(
     See Also
     --------
     evaluate_path_estimation : supply your own ``road_graph``.
-    pegasource.path_estimation.__main__.main : CLI entry (``pegasource-path-estimation``).
     """
     obs_df = load_observations_csv(observations_csv)
     true_df = load_true_path_csv(true_path_csv)

@@ -1005,5 +1005,3 @@ def main() -> None:
     print(f"Output folder: {args.output_dir.resolve()}")
 
 
-if __name__ == "__main__":
-    main()

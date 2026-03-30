@@ -189,13 +189,10 @@ python -m pegasource.dataset_clustering.prepare_viz_data
 
 ### Path estimation (trajectories)
 
-Evaluate reconstruction methods on observation CSVs vs a 1 Hz ground-truth path (requires **`[path_estimation]`** for full method set):
+Evaluate reconstruction methods on observation CSVs vs a 1 Hz ground-truth path (requires **`[path_estimation]`** for the full estimator stack):
 
 ```bash
 pip install -e ".[path_estimation]"
-pegasource-path-estimation --observations run_1_observations.csv --true-path run_1_true_path.csv --output-dir out/
-# or
-python -m pegasource.path_estimation --observations ... --true-path ... --output-dir out/
 ```
 
 ```python
@@ -232,12 +229,9 @@ results = estimate_paths_only(
 # results["kf"] is an EstimationResult with times_s, east_m, north_m (or {"error": "..."})
 ```
 
-Synthetic data generation and batch method comparison:
-
-```bash
-python -m pegasource.path_estimation.generate_synthetic_datasets --help
-python -m pegasource.path_estimation.run_method_evaluation --help   # writes ./method_eval/
-```
+Synthetic data (``generate_dataset`` in ``pegasource.path_estimation.generate_synthetic_datasets``)
+and batch method comparison (``main`` in ``pegasource.path_estimation.run_method_evaluation``) are
+invoked from your own Python code, not as installed console commands.
 
 ---
 

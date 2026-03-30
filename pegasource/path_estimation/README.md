@@ -9,40 +9,35 @@ Paired toy data in this directory (61 s at 1 Hz, eight mixed observations):
 - `sample_true_path.csv`
 - `sample_observations.csv`
 
-```bash
-python -m path_estimation \
-  --observations path_estimation/sample_observations.csv \
-  --true-path path_estimation/sample_true_path.csv \
-  --output-dir path_estimation_runs/sample \
-  --methods kf \
-  --no-plots
+```python
+from pathlib import Path
+
+from pegasource.path_estimation.evaluate import run_evaluation
+
+run_evaluation(
+    observations_csv=Path("pegasource/path_estimation/sample_observations.csv"),
+    true_path_csv=Path("pegasource/path_estimation/sample_true_path.csv"),
+    output_dir=Path("path_estimation_runs/sample"),
+    methods=["kf"],
+    plot=False,
+)
 ```
 
 ## Python API
 
-- **`evaluate_path_estimation(observations_csv, true_path_csv, road_graph, methods, ...)`** — metrics + optional plots; needs a real `*_true_path.csv`.
-- **`estimate_paths_only(observations_csv, road_graph, methods, ...)`** — returns `EstimationResult` per method; **no** truth file. Uses an internal time grid from the observation span (`output_hz`, default 1 Hz). Not available for **`lstm`**, **`transformer`**, or **`gnn`** (supervised / needs labels). **`plot_map`** is disallowed (needs real lon/lat).
+- **`run_evaluation(observations_csv, true_path_csv, output_dir, methods, ...)`** — loads the default OSM graph, writes ``metrics.json`` and ``figures/`` under ``output_dir``.
+- **`evaluate_path_estimation(observations_csv, true_path_csv, road_graph, methods, ...)`** — metrics + optional plots; needs a real `*_true_path.csv`; you supply ``road_graph``.
+- **`estimate_paths_only(observations_csv, road_graph, methods, ...)`** — returns `EstimationResult` per method; **no** truth file. Uses an internal time grid from the observation span (`output_hz`, default 1 Hz). Not available for **`lstm`**, **`transformer`**, or **`gnn`**. **`plot_map`** is disallowed (needs real lon/lat).
 - **`stub_true_path_from_observations`** (`io.py`) — time-grid helper used internally for the no-truth path.
 
-## CLI
+**Synthetic data:** `generate_dataset` in `generate_synthetic_datasets.py`, or `main()` there if you want to drive the same argparse-defined options from code.
 
-```bash
-python -m path_estimation \
-  --observations data/dataset_observations.csv \
-  --true-path data/dataset_true_path.csv \
-  --output-dir path_estimation_runs/run1 \
-  --seed 42 \
-  --device cpu
-```
-
-- `--methods`: comma-separated list (default: all implemented methods).
-- `--no-plots`: skip PNG figures.
-- `--map-plots`: also write Web Mercator basemap figures (may fetch tiles).
+**Batch method comparison:** `main()` in `run_method_evaluation.py` (writes under ``./method_eval/`` when invoked from your script).
 
 Outputs:
 
 - `metrics.json` — per-method scores (RMSE, MAE, Hausdorff, discrete Fréchet, DTW, length ratio, endpoint error, …).
-- `figures/<method>_path_enu.png` — ENU overlay (true vs estimated; optional observation overlays; no uncertainty ellipses).
+- `figures/<method>_path_enu.png` — ENU overlay (true vs estimated; optional observation overlays).
 
 ## Methods
 
@@ -67,10 +62,10 @@ Outputs:
 
 ## Dependencies
 
-See project `requirements.txt` (`scipy`, `filterpy`, `torch`, `torch-geometric`, …).
+Install optional extra: ``pip install -e ".[path_estimation]"`` (see project ``pyproject.toml``).
 
 ## Tests
 
 ```bash
-python -m pytest tests/test_path_metrics.py tests/test_graph_shortest.py -q
+pytest tests/test_path_estimation.py -q
 ```

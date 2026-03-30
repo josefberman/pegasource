@@ -69,7 +69,6 @@ dev = [
 [project.scripts]
 pegasource-download-roads = "pegasource.geo.israel_roads:_cli_download"
 pegasource-cluster-viz = "pegasource.dataset_clustering.server:run"
-pegasource-path-estimation = "pegasource.path_estimation.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

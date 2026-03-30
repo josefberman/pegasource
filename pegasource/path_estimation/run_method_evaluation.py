@@ -252,5 +252,3 @@ def main() -> None:
     print(f"Per-run outputs: {eval_dir}/run_<i>/ (metrics.json, figures/)")
 
 
-if __name__ == "__main__":
-    main()

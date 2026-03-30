@@ -44,5 +44,5 @@ nav:
   - PCAP Analysis: pcap.md
   - Geographic Functions: geo.md
   - Time-Series Prediction: timeseries.md
-  - Dataset clustering: dataset_clustering.md
-  - Path estimation: path_estimation.md
+  - Dataset Clustering: dataset_clustering.md
+  - Path Estimation: path_estimation.md
