@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Josef Berman" }]
 urls = { Documentation = "https://josefberman.github.io/pegasource/", Source = "https://github.com/josefberman/Pegasource" }
-keywords = ["pcap", "network", "geo", "timeseries", "israel", "roads"]
+keywords = ["pcap", "network", "geo", "timeseries", "clustering", "israel", "roads"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -42,6 +42,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+clustering = [
+    "sentence-transformers>=2.2",
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.22",
+    "python-multipart>=0.0.6",
+    "openpyxl>=3.1",
+    "requests>=2.28",
+]
 dev = [
     "pytest>=7.4",
     "pytest-cov",
@@ -52,6 +60,7 @@ dev = [
 
 [project.scripts]
 pegasource-download-roads = "pegasource.geo.israel_roads:_cli_download"
+pegasource-cluster-viz = "pegasource.dataset_clustering.server:run"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -59,6 +68,14 @@ include = ["pegasource*"]
 
 [tool.setuptools.package-data]
 "pegasource.data" = ["*.graphml.gz", "*.pkl.gz", "*.md"]
+"pegasource.dataset_clustering" = [
+    "data/*.csv",
+    "cluster_viz/*.html",
+    "cluster_viz/*.css",
+    "cluster_viz/*.js",
+    "cluster_viz/*.json",
+    "ifixit_devices.json",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Dataset Clusters</title>
+    <!-- Modern Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css?v=2">
+</head>
+
+<body>
+    <div id="app">
+        <!-- Sidebar layout -->
+        <aside id="sidebar">
+            <header>
+                <h1>Dataset Clusters</h1>
+                <p>Interactive Visualization of Dirty Hardware Data</p>
+                <div id="stats-container">
+                    <!-- Populated by JS -->
+                </div>
+            </header>
+
+            <div id="legend">
+                <h3>Hardware Categories</h3>
+                <ul id="legend-list">
+                    <!-- Populated by JS -->
+                </ul>
+            </div>
+
+            <div id="controls">
+                <details class="control-section" open>
+                    <summary class="control-section-header">Explore</summary>
+                    <div class="control-section-content">
+                        <div class="control-group">
+                            <label for="search">Search Clusters</label>
+                            <p class="control-hint">Search by category, subcategory, or record content to highlight matching clusters.</p>
+                            <input type="text" id="search" placeholder="E.g. Router, iPhone, 4331...">
+                        </div>
+                    </div>
+                </details>
+
+                <details class="control-section">
+                    <summary class="control-section-header">Clustering</summary>
+                    <div class="control-section-content">
+                        <div class="control-group">
+                            <label for="threshold-filter">Threshold: <span id="threshold-val"
+                                    style="font-weight:bold; color:var(--text-color);">0.30</span></label>
+                            <p class="control-hint">Lower = more clusters; higher = fewer. Click Recalculate to apply.</p>
+                            <input type="range" id="threshold-filter" min="0.10" max="0.90" step="0.05" value="0.30">
+                            <button id="recluster-btn" class="btn" style="margin-top: 10px; width: 100%;">Recalculate Clusters</button>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="control-section">
+                    <summary class="control-section-header">Filter</summary>
+                    <div class="control-section-content">
+                        <div class="control-group">
+                            <label for="size-filter">Min Cluster Size: <span id="size-val">1</span></label>
+                            <p class="control-hint">Hide clusters with fewer records than this value.</p>
+                            <input type="range" id="size-filter" min="1" max="100" value="1">
+                        </div>
+                    </div>
+                </details>
+
+                <details class="control-section">
+                    <summary class="control-section-header">Data</summary>
+                    <div class="control-section-content">
+                        <div class="control-group">
+                            <label>Upload Dataset</label>
+                            <p class="control-hint">Upload your own CSV or Excel file to cluster and visualize.</p>
+                            <input type="file" id="file-upload" accept=".csv, .xlsx" style="display: none;">
+                            <button id="upload-btn" class="btn" style="background:#10b981; margin-bottom: 10px;">Upload (.csv/.xlsx)</button>
+                        </div>
+                        <div class="control-group">
+                            <label>Export</label>
+                            <p class="control-hint">Download the current clusters with categories and matched devices to Excel.</p>
+                            <button id="export-btn" class="btn" style="background:#0ea5e9;">Export to Excel</button>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="control-section">
+                    <summary class="control-section-header">View</summary>
+                    <div class="control-section-content">
+                        <div class="control-group">
+                            <label>Reset</label>
+                            <p class="control-hint">Reset zoom, clear search, and show all clusters again.</p>
+                            <button id="reset-zoom" class="btn" style="background:#475569;">Reset View</button>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </aside>
+
+        <!-- Main Graph Area -->
+        <main id="graph-container">
+            <div id="embedding-overlay" class="embedding-overlay is-hidden" aria-live="polite">
+                <div class="embedding-overlay-inner">
+                    <p id="embedding-overlay-text">Generating embeddings…</p>
+                    <p class="embedding-overlay-hint">The page is loaded; this step may take a few minutes on CPU.</p>
+                </div>
+            </div>
+            <svg id="viz"></svg>
+            <div class="tooltip" id="node-tooltip"></div>
+        </main>
+
+        <!-- Detail Panel (Slides in from right) -->
+        <div id="detail-panel" class="hidden">
+            <button id="close-detail" class="icon-btn">&times;</button>
+            <div id="detail-content">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Logic -->
+    <script src="app.js"></script>
+</body>
+
+</html>

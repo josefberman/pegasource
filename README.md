@@ -1,6 +1,6 @@
 # Pegasource
 
-> **Offline-capable Python toolkit** — PCAP analysis, geographic functions, and automatic time-series forecasting.
+> **Offline-capable Python toolkit** — PCAP analysis, geographic functions, automatic time-series forecasting, and optional hardware-inventory clustering (embeddings + interactive viz).
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -14,16 +14,20 @@
 | `pegasource.pcap` | PCAP reader, statistics, anomaly & pattern detection |
 | `pegasource.geo` | Distance, coordinate transforms, road vectorizer, Israel road network |
 | `pegasource.timeseries` | Automatic time-series forecasting (SARIMAX + fallback) |
+| `pegasource.dataset_clustering` | Dirty hardware CSV → embeddings, hierarchical clustering, optional FastAPI + browser UI |
 
 ---
 
 ## Installation
 
 ```bash
-pip install -e ".[dev]"      # development install
+pip install -e ".[dev]"              # development install (tests + docs)
+pip install -e ".[clustering]"       # adds embedding server deps (sentence-transformers, FastAPI, …)
 # or
-pip install pegasource        # once published
+pip install pegasource               # once published
 ```
+
+Install **`[clustering]`** when you use `pegasource.dataset_clustering` for full pipelines (embeddings, HTTP server, Excel export). Core imports such as `load_data` and `cluster_embeddings` need scikit-learn and pandas (already in the base package); `generate_embeddings` needs **sentence-transformers** (included in `[clustering]`).
 
 > **scapy** requires root privileges to capture live traffic, but reading PCAP files works without root.
 
@@ -122,6 +126,63 @@ pred2 = fc2.predict(steps=6, exog=exog_future)
 2. Tries multiple SARIMAX configurations and selects by AIC
 3. Falls back to OLS linear trend + seasonal dummies if SARIMAX fails
 
+### Dataset clustering (hardware inventory)
+
+Cluster messy tabular inventory (e.g. hardware types/models) using sentence embeddings and agglomerative clustering. A bundled sample CSV lives under `pegasource/dataset_clustering/data/`.
+
+```python
+from pegasource.dataset_clustering import (
+    load_data,
+    build_text_representations,
+    generate_embeddings,
+    cluster_embeddings,
+)
+
+df = load_data("path/to/data.csv")           # use any CSV; CLI defaults to bundled sample if omitted
+texts = build_text_representations(df)
+emb = generate_embeddings(
+    texts,
+    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    batch_size=512,
+    device="cpu",
+)
+labels = cluster_embeddings(emb, threshold=0.3)
+df["cluster_id"] = labels
+```
+
+**CLI — batch clustering to CSV**
+
+```bash
+python -m pegasource.dataset_clustering.cluster_hardware \
+  --input path/to.csv --output clustered.csv --threshold 0.3
+```
+
+**Interactive visualization server** (requires `[clustering]`):
+
+```bash
+pegasource-cluster-viz --port 8001
+# or
+python -m pegasource.dataset_clustering.server --port 8001
+```
+
+Serves the bundled `cluster_viz` frontend, loads the default dataset (or `--data`), and computes embeddings in the background. For richer device matching in the UI, download the iFixit device list once:
+
+```bash
+python -m pegasource.dataset_clustering.fetch_ifixit_devices
+```
+
+**Regenerate bundled sample data** (optional, long run):
+
+```bash
+python -m pegasource.dataset_clustering.dataset_generator
+```
+
+**Static viz JSON** from an existing `clustered_output.csv`:
+
+```bash
+python -m pegasource.dataset_clustering.prepare_viz_data
+```
+
 ---
 
 ## Running Tests
@@ -152,6 +213,15 @@ pegasource/
 │   ├── auto.py          # AutoForecaster
 │   ├── models.py        # SARIMAXModel, LinearTrendModel
 │   └── utils.py         # detect_seasonality, train_test_split_ts, rmse
+├── dataset_clustering/  # optional [clustering] extra for full stack
+│   ├── cluster_hardware.py   # CLI + core clustering API
+│   ├── server.py             # FastAPI + static cluster_viz UI
+│   ├── custom_devices.py     # supplemental device names for matching
+│   ├── fetch_ifixit_devices.py
+│   ├── prepare_viz_data.py
+│   ├── dataset_generator.py
+│   ├── data/                 # sample CSVs
+│   └── cluster_viz/          # HTML/JS frontend
 └── data/
     └── israel_roads.pkl.gz   # pre-processed OSM graph (after download)
 ```
@@ -166,9 +236,11 @@ pegasource/
 - **pyproj** — coordinate transforms
 - **shapely** — geometric operations
 - **statsmodels** — SARIMAX
-- **scikit-learn** — feature engineering
+- **scikit-learn** — feature engineering, clustering in `dataset_clustering`
 - **pandas** — data manipulation
 - **matplotlib** — visualisation
+
+Optional **`[clustering]`**: **sentence-transformers**, **FastAPI**, **uvicorn**, **python-multipart**, **openpyxl**, **requests**.
 
 ---
 
