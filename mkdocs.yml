@@ -1,5 +1,5 @@
 site_name: Pegasource
-site_description: "Offline-capable Python toolkit for PCAP analysis, geographic functions, time-series forecasting, and optional hardware-inventory clustering"
+site_description: "Offline-capable Python toolkit for PCAP, geo, time-series, clustering, and path estimation"
 site_author: "Josef Berman"
 repo_url: https://github.com/josefberman/Pegasource # Placeholder/assumption
 repo_name: josefberman/Pegasource
@@ -45,3 +45,4 @@ nav:
   - Geographic Functions: geo.md
   - Time-Series Prediction: timeseries.md
   - Dataset clustering: dataset_clustering.md
+  - Path estimation: path_estimation.md

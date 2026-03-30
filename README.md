@@ -1,6 +1,6 @@
 # Pegasource
 
-> **Offline-capable Python toolkit** — PCAP analysis, geographic functions, automatic time-series forecasting, and optional hardware-inventory clustering (embeddings + interactive viz).
+> **Offline-capable Python toolkit** — PCAP analysis, geographic functions, time-series forecasting, optional hardware-inventory clustering, and path estimation (GPS / map-matching / filters / NN).
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -15,6 +15,7 @@
 | `pegasource.geo` | Distance, coordinate transforms, road vectorizer, Israel road network |
 | `pegasource.timeseries` | Automatic time-series forecasting (SARIMAX + fallback) |
 | `pegasource.dataset_clustering` | Dirty hardware CSV → embeddings, hierarchical clustering, optional FastAPI + browser UI |
+| `pegasource.path_estimation` | Trajectory reconstruction: graph map-matching, KF/EKF/UKF/particle, LSTM/Transformer/GNN (optional `[path_estimation]`) |
 
 ---
 
@@ -23,11 +24,14 @@
 ```bash
 pip install -e ".[dev]"              # development install (tests + docs)
 pip install -e ".[clustering]"       # adds embedding server deps (sentence-transformers, FastAPI, …)
+pip install -e ".[path_estimation]"  # torch, torch-geometric, filterpy, osmnx, contextily, …
 # or
 pip install pegasource               # once published
 ```
 
 Install **`[clustering]`** when you use `pegasource.dataset_clustering` for full pipelines (embeddings, HTTP server, Excel export). Core imports such as `load_data` and `cluster_embeddings` need scikit-learn and pandas (already in the base package); `generate_embeddings` needs **sentence-transformers** (included in `[clustering]`).
+
+Install **`[path_estimation]`** for `run_evaluation`, neural estimators, and Kalman/particle filters. Submodules such as `pegasource.path_estimation.metrics` work with the base install; `from pegasource.path_estimation import run_evaluation` loads the full stack.
 
 > **scapy** requires root privileges to capture live traffic, but reading PCAP files works without root.
 
@@ -183,6 +187,58 @@ python -m pegasource.dataset_clustering.dataset_generator
 python -m pegasource.dataset_clustering.prepare_viz_data
 ```
 
+### Path estimation (trajectories)
+
+Evaluate reconstruction methods on observation CSVs vs a 1 Hz ground-truth path (requires **`[path_estimation]`** for full method set):
+
+```bash
+pip install -e ".[path_estimation]"
+pegasource-path-estimation --observations run_1_observations.csv --true-path run_1_true_path.csv --output-dir out/
+# or
+python -m pegasource.path_estimation --observations ... --true-path ... --output-dir out/
+```
+
+```python
+from pegasource.path_estimation.evaluate import run_evaluation
+from pathlib import Path
+
+summary = run_evaluation(
+    observations_csv=Path("run_1_observations.csv"),
+    true_path_csv=Path("run_1_true_path.csv"),
+    output_dir=Path("out"),
+    methods=["dijkstra", "hmm", "kf"],
+)
+```
+
+**Observations only (no ground-truth CSV)** — use `estimate_paths_only` when you do not have a true path file. It builds an internal time grid from the observation span and returns per-method `EstimationResult` values (or `{"error": ...}`). Methods **lstm**, **transformer**, and **gnn** need labels; use `run_evaluation` / `evaluate_path_estimation` with a true path instead.
+
+```python
+from pathlib import Path
+
+from pegasource.path_estimation import estimate_paths_only
+from pegasource.path_estimation.graph_utils import get_projected_graph
+
+obs = Path("run_1_observations.csv")
+G = get_projected_graph()  # same OSM walk graph as evaluation uses
+
+results = estimate_paths_only(
+    obs,
+    G,
+    methods=["dijkstra", "hmm", "kf", "ekf"],
+    output_hz=1.0,
+    output_dir=Path("out_no_gt"),
+    plot=True,   # writes out_no_gt/figures/<method>_path_enu.png
+)
+# results["kf"] is an EstimationResult with times_s, east_m, north_m (or {"error": "..."})
+```
+
+Synthetic data generation and batch method comparison:
+
+```bash
+python -m pegasource.path_estimation.generate_synthetic_datasets --help
+python -m pegasource.path_estimation.run_method_evaluation --help   # writes ./method_eval/
+```
+
 ---
 
 ## Running Tests
@@ -222,6 +278,12 @@ pegasource/
 │   ├── dataset_generator.py
 │   ├── data/                 # sample CSVs
 │   └── cluster_viz/          # HTML/JS frontend
+├── path_estimation/          # optional [path_estimation] for evaluate + NN/torch
+│   ├── evaluate.py         # run_evaluation, metrics, figures
+│   ├── metrics.py, io.py, graph_utils.py, …
+│   ├── filters/, nn/, gnn/
+│   ├── london_street_path.py, geo_reference.py, plotting_utils.py
+│   └── sample_*.csv, cache/  # bundled samples + OSM graph cache
 └── data/
     └── israel_roads.pkl.gz   # pre-processed OSM graph (after download)
 ```
@@ -241,6 +303,8 @@ pegasource/
 - **matplotlib** — visualisation
 
 Optional **`[clustering]`**: **sentence-transformers**, **FastAPI**, **uvicorn**, **python-multipart**, **openpyxl**, **requests**.
+
+Optional **`[path_estimation]`**: **filterpy**, **torch**, **torch-geometric**, **contextily**, **osmnx**, **tqdm** (plus base **networkx**, **pyproj**, **matplotlib**, **pandas**, **scipy** already in the package).
 
 ---
 
