@@ -1,6 +1,6 @@
 # Dataset clustering
 
-Embed messy tabular hardware inventory, run hierarchical clustering, and optionally serve an interactive browser UI. Install optional dependencies with `pip install -e ".[clustering]"` for embeddings (`sentence-transformers`), the HTTP server (FastAPI/uvicorn), and related tools.
+The `dataset_clustering` module groups messy tabular inventory by embedding each row as text and clustering in embedding space, with an optional FastAPI server and browser UI for interactive use.
 
 ## Reference
 

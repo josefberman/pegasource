@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Offline-capable Python toolkit for PCAP analysis, geographic functions, time-series forecasting, and optional hardware-inventory clustering">
+        <meta name="description" content="Offline-capable Python toolkit for PCAP, geo, time-series, clustering, and path estimation">
       
       
         <meta name="author" content="Josef Berman">
@@ -316,6 +316,25 @@
   
 
       
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="path_estimation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Path estimation
+
+      </a>
+    </li>
+  
+
+      
     </ul>
   </div>
 </nav>
@@ -610,6 +629,95 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#module-dataset-clustering-pegasourcedataset_clustering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module: Dataset clustering (pegasource.dataset_clustering)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Module: Dataset clustering (pegasource.dataset_clustering)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cli-and-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI and server
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-path-estimation-pegasourcepath_estimation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module: Path estimation (pegasource.path_estimation)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Module: Path estimation (pegasource.path_estimation)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#metrics-lightweight-import" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics (lightweight import)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evaluation-with-a-true-path-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evaluation with a true path file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#observations-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observations only
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -714,6 +822,33 @@
     
   
     Dataset clustering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="path_estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Path estimation
   
 
     
@@ -935,6 +1070,95 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#module-dataset-clustering-pegasourcedataset_clustering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module: Dataset clustering (pegasource.dataset_clustering)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Module: Dataset clustering (pegasource.dataset_clustering)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cli-and-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI and server
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-path-estimation-pegasourcepath_estimation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module: Path estimation (pegasource.path_estimation)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Module: Path estimation (pegasource.path_estimation)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#metrics-lightweight-import" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics (lightweight import)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evaluation-with-a-true-path-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evaluation with a true path file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#observations-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observations only
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -956,7 +1180,7 @@
 
 
 <h1 id="pegasource-comprehensive-guide">Pegasource Comprehensive Guide</h1>
-<p>Welcome to the comprehensive guide for <strong>Pegasource</strong> — an offline-capable Python toolkit built for PCAP analysis, geographic functions, and automatic time-series forecasting.</p>
+<p>Welcome to the comprehensive guide for <strong>Pegasource</strong> — an offline-capable Python toolkit for PCAP analysis, geographic functions, time-series forecasting, optional <strong>hardware-inventory clustering</strong>, and <strong>path estimation</strong> from mixed sensor observations.</p>
 <p>This guide provides an in-depth look at every module, its purpose, and examples of how to use its functions.</p>
 <hr />
 <h2 id="table-of-contents">Table of Contents</h2>
@@ -975,6 +1199,14 @@
 <li><a href="timeseries/">Module: Time-Series (<code>pegasource.timeseries</code>)</a></li>
 <li><a href="timeseries/#pegasource.timeseries.AutoForecaster">Auto Forecaster (SARIMAX &amp; Fallbacks)</a></li>
 <li><a href="timeseries/#pegasource.timeseries.detect_seasonality">Utilities</a></li>
+<li><a href="dataset_clustering/">Module: Dataset clustering (<code>pegasource.dataset_clustering</code>)</a></li>
+<li><a href="dataset_clustering/#core-pipeline-python-api">Core pipeline &amp; embeddings</a></li>
+<li><a href="dataset_clustering/#command-line-batch-run">CLI &amp; interactive server</a></li>
+<li><a href="dataset_clustering/#interactive-visualization-server">iFixit catalog &amp; static viz</a></li>
+<li><a href="path_estimation/">Module: Path estimation (<code>pegasource.path_estimation</code>)</a></li>
+<li><a href="path_estimation/#trajectory-metrics-no-ground-truth-pipeline">Metrics</a></li>
+<li><a href="path_estimation/#evaluation-with-observations-and-true-path">Evaluation with ground truth</a></li>
+<li><a href="path_estimation/#observations-only-no-ground-truth-file">Observations only</a></li>
 </ol>
 <hr />
 <h2 id="installation">Installation</h2>
@@ -982,8 +1214,12 @@
 <pre><code class="language-bash"># Basic installation
 pip install pegasource
 
-# Development installation
+# Development installation (tests + docs)
 pip install -e &quot;.[dev]&quot;
+
+# Optional feature sets
+pip install -e &quot;.[clustering]&quot;       # dataset clustering: embeddings, FastAPI viz, Excel export
+pip install -e &quot;.[path_estimation]&quot;  # path estimation: torch, filterpy, osmnx, GNN, …
 </code></pre>
 <blockquote>
 <p><strong>Note</strong>: For live packet capture via <code>scapy</code>, root privileges may be required on some systems. Reading existing <code>.pcap</code> or <code>.pcapng</code> files works without root.</p>
@@ -1153,6 +1389,76 @@ train, test = train_test_split_ts(data, test_size=0.2)
 # Calculate Root Mean Squared Error
 error = rmse(y_true, y_pred)
 </code></pre>
+<hr />
+<h2 id="module-dataset-clustering-pegasourcedataset_clustering">Module: Dataset clustering (<code>pegasource.dataset_clustering</code>)</h2>
+<p>Cluster dirty tabular inventory by <strong>embedding</strong> each row’s text and <strong>agglomerative clustering</strong> in cosine space. Optional <strong>FastAPI</strong> server with a browser UI for threshold tuning, uploads, and <strong>Excel</strong> export. Full details: <a href="dataset_clustering/">dataset_clustering.md</a>.</p>
+<h3 id="core-pipeline">Core pipeline</h3>
+<pre><code class="language-python">from pathlib import Path
+from pegasource.dataset_clustering import (
+    load_data,
+    build_text_representations,
+    generate_embeddings,
+    cluster_embeddings,
+)
+
+df = load_data(str(Path(&quot;inventory.csv&quot;)))
+texts = build_text_representations(df)
+emb = generate_embeddings(
+    texts,
+    &quot;sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2&quot;,
+    batch_size=512,
+    device=&quot;cpu&quot;,
+)
+labels = cluster_embeddings(emb, threshold=0.3)
+df[&quot;cluster_id&quot;] = labels
+</code></pre>
+<p>Install <strong><code>[clustering]</code></strong> for <strong>sentence-transformers</strong> and the HTTP stack. Very large tables use a <strong>two-phase</strong> (KMeans pre-grouping + agglomerative) strategy automatically.</p>
+<h3 id="cli-and-server">CLI and server</h3>
+<pre><code class="language-bash"># Batch CSV → clustered CSV
+python -m pegasource.dataset_clustering.cluster_hardware --input data.csv --output out.csv --threshold 0.3
+
+# Interactive UI (requires [clustering])
+pegasource-cluster-viz --port 8001
+</code></pre>
+<p>Cache <strong>iFixit</strong> device names for richer cluster labels: <code>python -m pegasource.dataset_clustering.fetch_ifixit_devices</code>.</p>
+<hr />
+<h2 id="module-path-estimation-pegasourcepath_estimation">Module: Path estimation (<code>pegasource.path_estimation</code>)</h2>
+<p>Reconstruct paths from <strong>observations</strong> and optional <strong>ground-truth</strong> trajectories: graph map-matching (Dijkstra, A*, HMM), filters (KF, EKF, UKF, particle), and optional LSTM / Transformer / GNN (supervised). Full details: <a href="path_estimation/">path_estimation.md</a>.</p>
+<h3 id="metrics-lightweight-import">Metrics (lightweight import)</h3>
+<pre><code class="language-python">import numpy as np
+from pegasource.path_estimation.metrics import compute_all_metrics
+
+true_xy = np.array([[0.0, 0.0], [10.0, 0.0]])
+est_xy = true_xy + 0.2
+print(compute_all_metrics(true_xy, est_xy))
+</code></pre>
+<h3 id="evaluation-with-a-true-path-file">Evaluation with a true path file</h3>
+<pre><code class="language-python">from pathlib import Path
+from pegasource.path_estimation.evaluate import run_evaluation
+
+run_evaluation(
+    observations_csv=Path(&quot;run_1_observations.csv&quot;),
+    true_path_csv=Path(&quot;run_1_true_path.csv&quot;),
+    output_dir=Path(&quot;out&quot;),
+    methods=[&quot;dijkstra&quot;, &quot;hmm&quot;, &quot;kf&quot;],
+    plot=True,
+)
+</code></pre>
+<h3 id="observations-only">Observations only</h3>
+<p>Use <strong><code>estimate_paths_only</code></strong> when no ground-truth CSV exists (methods <strong>lstm</strong> / <strong>transformer</strong> / <strong>gnn</strong> are disabled; use <code>run_evaluation</code> with labels for those).</p>
+<pre><code class="language-python">from pathlib import Path
+from pegasource.path_estimation import estimate_paths_only
+from pegasource.path_estimation.graph_utils import get_projected_graph
+
+results = estimate_paths_only(
+    Path(&quot;observations.csv&quot;),
+    get_projected_graph(),
+    methods=[&quot;dijkstra&quot;, &quot;kf&quot;, &quot;ekf&quot;],
+    output_dir=Path(&quot;out_no_gt&quot;),
+    plot=True,
+)
+</code></pre>
+<p>Install <strong><code>[path_estimation]</code></strong> for the full estimator stack.</p>
 <hr />
 <p><em>This guide aims to cover all standard use-cases. For lower-level functionality, consult the docstrings within the respective python modules.</em></p>
 

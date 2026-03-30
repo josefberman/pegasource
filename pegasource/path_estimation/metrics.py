@@ -1,4 +1,10 @@
-"""Trajectory comparison metrics (true vs estimated in ENU meters)."""
+"""Trajectory comparison metrics (true vs estimated polylines in ENU meters).
+
+All distances are in **meters** assuming ``true_xy`` and ``est_xy`` share the same
+planar ENU frame and row-wise alignment (same length / time ordering).  Expensive
+Fréchet and DTW are run on subsampled pairs when sequences are long — see
+``max_points_frechet_dtw`` in :func:`compute_all_metrics`.
+"""
 
 from __future__ import annotations
 
@@ -20,7 +26,18 @@ def _subsample_pair(
 
 
 def rmse_euclidean(true_xy: np.ndarray, est_xy: np.ndarray) -> float:
-    """Root mean squared Euclidean error (per aligned point)."""
+    """Root-mean-square of per-point Euclidean distances between aligned vertices.
+
+    Parameters
+    ----------
+    true_xy, est_xy : numpy.ndarray
+        Shape ``(n, 2)``; row ``i`` is compared to row ``i``.
+
+    Returns
+    -------
+    float
+        RMSE in meters.
+    """
     d = np.sqrt(np.sum((true_xy - est_xy) ** 2, axis=1))
     return float(np.sqrt(np.mean(d**2)))
 
@@ -105,7 +122,35 @@ def compute_all_metrics(
     *,
     max_points_frechet_dtw: int = 200,
 ) -> Dict[str, Any]:
-    """Compute all metrics; subsample for expensive Fréchet/DTW on long paths."""
+    """Compute a standard bundle of trajectory error metrics.
+
+    Parameters
+    ----------
+    true_xy : numpy.ndarray
+        Ground-truth polyline, shape ``(n, 2)`` (east, north).
+    est_xy : numpy.ndarray
+        Estimated polyline, same shape as ``true_xy`` (row-aligned samples).
+    max_points_frechet_dtw : int, default 200
+        Both Fréchet and DTW are evaluated on uniform subsamples of at most this many
+        points per curve (for speed on long tracks). Hausdorff uses its own cap (400).
+
+    Returns
+    -------
+    dict
+        Keys include:
+
+        ``rmse_m``, ``mae_m``, ``mae_east_m``, ``mae_north_m``,
+        ``hausdorff_m``, ``path_length_true_m``, ``path_length_est_m``,
+        ``length_ratio``, ``endpoint_error_m``,
+        ``discrete_frechet_m``, ``dtw_m``.
+
+        Values are floats in meters or dimensionless ratio for ``length_ratio``.
+
+    Notes
+    -----
+    Assumes both paths use the same sampling grid or comparable point counts; this
+    function does **not** perform temporal resampling.
+    """
     out: Dict[str, Any] = {}
     out["rmse_m"] = rmse_euclidean(true_xy, est_xy)
     out["mae_m"] = mae_euclidean(true_xy, est_xy)

@@ -13,7 +13,22 @@ from .london_street_path import _proj_xy_to_enu_columns, load_walk_graph
 
 
 def get_projected_graph():
-    """Return the projected walk graph (same as synthetic data generation)."""
+    """Load the cached/projected OSM **walk** graph used for map-matching and synthesis.
+
+    Delegates to :func:`pegasource.path_estimation.london_street_path.load_walk_graph`.
+    The graph is a projected ``networkx.MultiDiGraph`` with ``x``, ``y`` node attributes
+    and ``crs`` set — suitable for :func:`pegasource.path_estimation.evaluate.run_evaluation`.
+
+    Returns
+    -------
+    networkx.MultiDiGraph
+        Projected to a metric CRS for routing.
+
+    Notes
+    -----
+    On first use may download OSM data unless a GraphML cache exists under the package
+    ``cache/`` directory.
+    """
     return load_walk_graph()
 
 

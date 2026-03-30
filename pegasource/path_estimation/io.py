@@ -1,4 +1,9 @@
-"""Load observation and ground-truth CSVs; derive per-event ENU points."""
+"""CSV I/O and observation geometry for the synthetic / evaluation pipelines.
+
+Observation files are sorted by ``timestamp_s``.  Ground-truth files provide
+``true_x`` / ``true_y`` in local ENU meters.  Helper functions map each observation
+row to a proxy ``(east, north)`` for graph snapping and filtering.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +15,23 @@ import pandas as pd
 
 
 def load_observations_csv(path: Path) -> pd.DataFrame:
-    """Load ``*_observations.csv`` sorted by time."""
+    """Load an observations CSV and sort by ``timestamp_s``.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Must contain a ``timestamp_s`` column (seconds).
+
+    Returns
+    -------
+    pandas.DataFrame
+        Sorted ascending by time; index reset.
+
+    Raises
+    ------
+    ValueError
+        If ``timestamp_s`` is missing.
+    """
     df = pd.read_csv(path)
     if "timestamp_s" not in df.columns:
         raise ValueError(f"Missing timestamp_s in {path}")
@@ -18,7 +39,23 @@ def load_observations_csv(path: Path) -> pd.DataFrame:
 
 
 def load_true_path_csv(path: Path) -> pd.DataFrame:
-    """Load ``*_true_path.csv`` (1 Hz ground truth)."""
+    """Load a ground-truth path CSV (regular samples in ENU meters).
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Must include ``timestamp_s``, ``true_x``, and ``true_y``.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Sorted by ``timestamp_s``.
+
+    Raises
+    ------
+    ValueError
+        If required columns are absent.
+    """
     df = pd.read_csv(path)
     for col in ("timestamp_s", "true_x", "true_y"):
         if col not in df.columns:
@@ -33,12 +70,18 @@ def stub_true_path_from_observations(obs_df: pd.DataFrame, *, hz: float = 1.0) -
     ``true_x`` / ``true_y`` are zero placeholders; most estimators only use the time axis.
     Do **not** use this for metrics or for supervised methods (LSTM, Transformer, GNN).
 
-    Args:
-        obs_df: Sorted or unsorted observations (must contain ``timestamp_s``).
-        hz: Output sampling rate in Hz (default 1).
+    Parameters
+    ----------
+    obs_df : pandas.DataFrame
+        Sorted or unsorted observations; must contain ``timestamp_s``.
+    hz : float, default 1.0
+        Output sampling rate in Hz.
 
-    Returns:
-        DataFrame with ``timestamp_s``, ``true_x``, ``true_y``, and optional ``lon``/``lat`` (NaN).
+    Returns
+    -------
+    pandas.DataFrame
+        Columns include ``timestamp_s``, ``true_x``, ``true_y``, NaN ``lon``/``lat`` placeholders,
+        and ``dataset_id`` set to ``\"_stub_no_truth\"``.
     """
     obs_df = obs_df.sort_values("timestamp_s").reset_index(drop=True)
     t = obs_df["timestamp_s"].to_numpy(dtype=float)
@@ -63,7 +106,27 @@ def stub_true_path_from_observations(obs_df: pd.DataFrame, *, hz: float = 1.0) -
 
 
 def observation_enu_xy(row: pd.Series) -> Tuple[float, float]:
-    """Return a single (east, north) proxy for an observation row (meters)."""
+    """Map one observation row to a representative ``(east_m, north_m)`` point.
+
+    Parameters
+    ----------
+    row : pandas.Series
+        Must contain ``source_type`` and columns for that source:
+
+        - ``"gps"`` → ``gps_x``, ``gps_y``
+        - ``"circle"`` → ``circle_x``, ``circle_y``
+        - ``"cell_sector"`` → tower position plus annulus/sector mid-angle
+
+    Returns
+    -------
+    tuple[float, float]
+        Easting and northing in the same ENU frame as ``true_x`` / ``true_y``.
+
+    Raises
+    ------
+    ValueError
+        If ``source_type`` is unknown.
+    """
     src = row["source_type"]
     if src == "gps":
         return float(row["gps_x"]), float(row["gps_y"])
@@ -78,7 +141,22 @@ def observation_enu_xy(row: pd.Series) -> Tuple[float, float]:
 
 
 def build_event_points(obs_df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Arrays of (timestamp, east, north) for each row."""
+    """Stack timestamps and ENU coordinates for all observation rows.
+
+    Parameters
+    ----------
+    obs_df : pandas.DataFrame
+        Sorted observations (see :func:`load_observations_csv`).
+
+    Returns
+    -------
+    timestamp_s : numpy.ndarray
+        Shape ``(n,)``.
+    east_m : numpy.ndarray
+        Shape ``(n,)``.
+    north_m : numpy.ndarray
+        Shape ``(n,)``.
+    """
     ts = obs_df["timestamp_s"].to_numpy(dtype=float)
     xy = np.array([observation_enu_xy(obs_df.iloc[i]) for i in range(len(obs_df))])
     return ts, xy[:, 0], xy[:, 1]
@@ -87,7 +165,20 @@ def build_event_points(obs_df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np
 def align_times_to_true(
     true_df: pd.DataFrame,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Return ``times_s``, ``true_xy`` shape (N, 2) from true path dataframe."""
+    """Extract time axis and stacked true positions from a ground-truth frame.
+
+    Parameters
+    ----------
+    true_df : pandas.DataFrame
+        Must contain ``timestamp_s``, ``true_x``, ``true_y``.
+
+    Returns
+    -------
+    times_s : numpy.ndarray
+        Shape ``(N,)``.
+    true_xy : numpy.ndarray
+        Shape ``(N, 2)`` with columns east, north.
+    """
     t = true_df["timestamp_s"].to_numpy(dtype=float)
     xy = np.column_stack(
         (true_df["true_x"].to_numpy(float), true_df["true_y"].to_numpy(float))

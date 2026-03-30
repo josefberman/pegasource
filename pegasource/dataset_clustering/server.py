@@ -1,3 +1,13 @@
+"""Interactive clustering UI: FastAPI backend + static ``cluster_viz`` frontend.
+
+Endpoints (JSON under ``/api``) load or upload a CSV, track embedding status, re-cluster
+by threshold, and export Excel. Static files are served from the package
+``cluster_viz/`` directory. Run with ``python -m pegasource.dataset_clustering.server``
+or the ``pegasource-cluster-viz`` console script (requires ``[clustering]`` extras).
+
+The module exposes ``app`` (FastAPI instance) for ASGI servers and ``run()`` for CLI.
+"""
+
 import argparse
 import asyncio
 import json

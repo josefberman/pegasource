@@ -1,24 +1,41 @@
 """
-pegasource.dataset_clustering — Hardware inventory clustering via embeddings,
-agglomerative clustering, optional FastAPI viz server, and iFixit device matching.
+Hardware inventory clustering: text embeddings + hierarchical clustering.
 
-Quick start::
+Reads a CSV of string cells, concatenates each row into one text line, encodes with a
+`sentence-transformers <https://www.sbert.net/>`_ model (cosine-normalized vectors),
+then clusters with scikit-learn: **agglomerative** clustering for smaller tables, or a
+**two-phase** MiniBatchKMeans + agglomerative pipeline when row count exceeds
+`DIRECT_CLUSTERING_LIMIT`.
 
-    from pegasource.dataset_clustering import (
-        load_data,
-        build_text_representations,
-        generate_embeddings,
-        cluster_embeddings,
-    )
+**Public API** (import from ``pegasource.dataset_clustering``):
 
-    df = load_data(path_to_csv)
-    texts = build_text_representations(df)
-    emb = generate_embeddings(texts, model_name, batch_size)
-    labels = cluster_embeddings(emb, threshold=0.3)
+- `load_data` — load CSV as strings
+- `build_text_representations` — one string per row
+- `generate_embeddings` — requires optional ``[clustering]`` (sentence-transformers)
+- `cluster_direct` / `cluster_twophase` / `cluster_embeddings` — label vectors
+- `print_summary` — CLI-style cluster size table
 
-Run the interactive server (requires optional deps)::
+**Optional tooling**: FastAPI server (``server``), iFixit catalog fetch, Excel export,
+bundled ``cluster_viz`` UI. Install extras with ``pip install -e ".[clustering]"``.
 
+Examples
+--------
+>>> # After: pip install -e ".[clustering]"
+>>> from pegasource.dataset_clustering import (
+...     load_data,
+...     build_text_representations,
+...     generate_embeddings,
+...     cluster_embeddings,
+... )
+>>> # df = load_data("data.csv")
+>>> # emb = generate_embeddings(build_text_representations(df), "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", 256)
+>>> # labels = cluster_embeddings(emb, 0.3)
+
+CLI and server::
+
+    python -m pegasource.dataset_clustering.cluster_hardware --help
     python -m pegasource.dataset_clustering.server
+    pegasource-cluster-viz --port 8001
 """
 
 from .cluster_hardware import (

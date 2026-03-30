@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""
-Cluster dirty hardware records using text embeddings + agglomerative hierarchical clustering.
+r"""Cluster dirty hardware records using embeddings + agglomerative clustering.
 
-For large datasets (>10K rows), uses a two-phase approach:
-  Phase 1: Pre-group rows with MiniBatchKMeans into manageable chunks
-  Phase 2: Run agglomerative clustering within each chunk, then merge labels
+This module is the core library behind ``python -m pegasource.dataset_clustering.cluster_hardware``
+and the symbols re-exported from :mod:`pegasource.dataset_clustering`.
 
-Usage:
-    python cluster_hardware.py --input data/dirty_hardware_data_40k.csv --threshold 0.3
-    python cluster_hardware.py --input data/dirty_hardware_data_40k.csv --threshold 0.2 --sample-size 5000
+**Scaling:** For :math:`n >` ``DIRECT_CLUSTERING_LIMIT``, use :func:`cluster_twophase`
+(via :func:`cluster_embeddings`) so memory stays bounded.
+
+See Also
+--------
+pegasource.dataset_clustering.server : interactive FastAPI + static UI
 """
 
 import argparse
@@ -23,7 +24,8 @@ import numpy as np
 from sklearn.cluster import AgglomerativeClustering, MiniBatchKMeans
 
 
-# Maximum rows for direct agglomerative clustering (above this, use two-phase approach)
+#: Maximum row count for single-pass agglomerative clustering. Above this,
+#: :func:`cluster_embeddings` calls :func:`cluster_twophase` automatically.
 DIRECT_CLUSTERING_LIMIT = 15_000
 
 _DEFAULT_INPUT = PACKAGE_DIR / "data" / "dirty_hardware_data_40k.csv"
@@ -71,7 +73,24 @@ def parse_args():
 
 
 def load_data(path, sample_size=None):
-    """Load CSV and optionally sample rows."""
+    """Load a CSV with all columns as strings (missing values become empty strings).
+
+    Parameters
+    ----------
+    path : str or os.PathLike
+        Input ``.csv`` path.
+    sample_size : int, optional
+        If set, only the first ``sample_size`` rows are kept (for quick tests).
+
+    Returns
+    -------
+    pandas.DataFrame
+        All columns have ``dtype`` str; ``NaN`` replaced with ``""``.
+
+    Notes
+    -----
+    Prints progress to stdout (row × column counts).
+    """
     print(f"📂 Loading data from {path}...")
     df = pd.read_csv(path, dtype=str).fillna("")
     if sample_size is not None:
@@ -81,7 +100,24 @@ def load_data(path, sample_size=None):
 
 
 def build_text_representations(df):
-    """Concatenate all columns into a single text string per row."""
+    """Join every column of each row into one text line for embedding.
+
+    Columns are separated by ``" | "`` (space-pipe-space), preserving column order.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input table (typically all strings).
+
+    Returns
+    -------
+    list of str
+        Length ``len(df)``; one concatenated string per row.
+
+    Notes
+    -----
+    Prints the first row’s text to stdout as a sanity check.
+    """
     print("📝 Building text representations...")
     texts = df.apply(lambda row: " | ".join(row.values), axis=1).tolist()
     print(f"   Example: {texts[0]!r}")
@@ -89,7 +125,32 @@ def build_text_representations(df):
 
 
 def generate_embeddings(texts, model_name, batch_size, device="cpu"):
-    """Generate embeddings using a sentence-transformer model."""
+    """Encode texts with SentenceTransformer (L2-normalized for cosine distance).
+
+    Requires the optional **sentence-transformers** dependency
+    (``pip install -e ".[clustering]"``).
+
+    Parameters
+    ----------
+    texts : list of str
+        One sentence/line per inventory row.
+    model_name : str
+        Hugging Face model id (e.g. ``sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2``)
+        or path to a local model directory.
+    batch_size : int
+        ``model.encode`` batch size (GPU memory vs throughput).
+    device : str, default ``"cpu"``
+        ``"cpu"``, ``"cuda"``, or another torch device string.
+
+    Returns
+    -------
+    numpy.ndarray
+        Shape ``(n_rows, dim)``; rows are unit vectors if the backend normalizes.
+
+    Notes
+    -----
+    Local paths are resolved with :func:`os.path.abspath` when the path exists on disk.
+    """
     from sentence_transformers import SentenceTransformer
 
     # Resolve local paths to absolute (avoids cwd issues)
@@ -115,7 +176,22 @@ def generate_embeddings(texts, model_name, batch_size, device="cpu"):
 
 
 def cluster_direct(embeddings, threshold):
-    """Run agglomerative clustering directly (for smaller datasets)."""
+    """Agglomerative clustering with cosine distance and average linkage.
+
+    Parameters
+    ----------
+    embeddings : numpy.ndarray
+        Shape ``(n, dim)``; rows are typically L2-normalized.
+    threshold : float
+        ``distance_threshold`` in ``AgglomerativeClustering`` (cosine metric).  Smaller
+        values yield **more** clusters (tighter merges); larger values yield **fewer**
+        clusters. Typical range ~0.2–0.5 for normalized vectors.
+
+    Returns
+    -------
+    numpy.ndarray
+        Integer labels, shape ``(n,)``, not necessarily starting at 0 or contiguous.
+    """
     print(f"🔗 Clustering {len(embeddings):,} rows with distance_threshold={threshold}...")
     t0 = time.time()
     clustering = AgglomerativeClustering(
@@ -132,10 +208,24 @@ def cluster_direct(embeddings, threshold):
 
 
 def cluster_twophase(embeddings, threshold, n_pre_clusters=None):
-    """
-    Two-phase clustering for large datasets:
-      Phase 1: MiniBatchKMeans to create manageable pre-groups
-      Phase 2: Agglomerative clustering within each pre-group
+    """Scale to large *n*: KMeans pre-groups, then agglomerative within each group.
+
+    Global cluster ids are formed by offsetting each group’s local labels so they do not
+    collide across groups.
+
+    Parameters
+    ----------
+    embeddings : numpy.ndarray
+        Shape ``(n, dim)``.
+    threshold : float
+        Same meaning as in :func:`cluster_direct` (cosine / average linkage).
+    n_pre_clusters : int, optional
+        Number of KMeans buckets. If omitted, uses ``max(10, n // 5000)`` capped at ``n``.
+
+    Returns
+    -------
+    numpy.ndarray
+        Integer labels, shape ``(n,)``.
     """
     n = len(embeddings)
     if n_pre_clusters is None:
@@ -190,7 +280,25 @@ def cluster_twophase(embeddings, threshold, n_pre_clusters=None):
 
 
 def cluster_embeddings(embeddings, threshold, n_pre_clusters=None):
-    """Choose clustering strategy based on dataset size."""
+    """Dispatch to :func:`cluster_direct` or :func:`cluster_twophase` by row count.
+
+    If ``len(embeddings) <= DIRECT_CLUSTERING_LIMIT`` uses direct agglomerative
+    clustering; otherwise uses the two-phase pipeline.
+
+    Parameters
+    ----------
+    embeddings : numpy.ndarray
+        Row embedding matrix.
+    threshold : float
+        Cosine distance threshold for agglomerative steps.
+    n_pre_clusters : int, optional
+        Forwarded to :func:`cluster_twophase` when the two-phase path is used.
+
+    Returns
+    -------
+    numpy.ndarray
+        Cluster label per row.
+    """
     n = len(embeddings)
     if n <= DIRECT_CLUSTERING_LIMIT:
         return cluster_direct(embeddings, threshold)
@@ -200,7 +308,21 @@ def cluster_embeddings(embeddings, threshold, n_pre_clusters=None):
 
 
 def print_summary(df, max_clusters=30, samples_per_cluster=3):
-    """Print a summary of the clustering results."""
+    """Print cluster sizes and sample rows to stdout (requires ``cluster_id`` column).
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Must include a ``cluster_id`` column (e.g. after assigning labels).
+    max_clusters : int, default 30
+        Maximum number of largest clusters to list.
+    samples_per_cluster : int, default 3
+        Rows shown per cluster (excluding ``cluster_id`` in the display).
+
+    Returns
+    -------
+    None
+    """
     cluster_sizes = df.groupby("cluster_id").size().sort_values(ascending=False)
     n_clusters = len(cluster_sizes)
 

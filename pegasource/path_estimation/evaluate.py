@@ -1,4 +1,21 @@
-"""Run estimators, compute metrics, save JSON summary and figures."""
+"""High-level evaluation API: run estimators, compare to ground truth, save artifacts.
+
+**Method registry** (``METHOD_REGISTRY``): graph stitchers ``dijkstra`` / ``astar``,
+``hmm``, Kalman-family filters ``kf`` / ``ekf`` / ``ukf`` / ``particle``, ``gnn``, plus
+``lstm`` / ``transformer`` implemented in this file.  Supervised keys ``lstm``,
+``transformer``, ``gnn`` require a real ``*_true_path.csv`` (see ``METHODS_REQUIRING_GROUND_TRUTH``).
+
+**Typical entry points**
+
+- :func:`run_evaluation` — loads CSVs and the default projected OSM graph from
+  :func:`~pegasource.path_estimation.graph_utils.get_projected_graph`, writes
+  ``metrics.json`` and figures.
+- :func:`evaluate_path_estimation` — same pipeline but you pass the ``road_graph``.
+- :func:`estimate_paths_only` — no true path file; cannot run supervised methods.
+
+Output dicts map method name → either metric scores (see :func:`pegasource.path_estimation.metrics.compute_all_metrics`)
+plus ``meta``, or ``{"error": "..."}`` if the estimator raised.
+"""
 
 from __future__ import annotations
 
@@ -85,6 +102,18 @@ def _estimate_transformer(
 
 
 def torch_device(name: Optional[str] = None):
+    """Return a ``torch.device``, defaulting to CUDA when available.
+
+    Parameters
+    ----------
+    name : str, optional
+        If given (e.g. ``"cuda"``, ``"cpu"``), that device is returned. If ``None``,
+        uses CUDA when :func:`torch.cuda.is_available` else CPU.
+
+    Returns
+    -------
+    torch.device
+    """
     import torch as _torch
 
     if name:
@@ -199,23 +228,43 @@ def estimate_paths_only(
 ) -> Dict[str, Any]:
     """Estimate paths from observations only (no ground-truth CSV).
 
-    Builds an internal time grid from the observation span at ``output_hz`` (default 1 Hz).
-    Methods that require supervised training (**lstm**, **transformer**, **gnn**) are not
-    supported here; use :func:`evaluate_path_estimation` with a true path file.
+    Builds a **stub** ground-truth frame with :func:`pegasource.path_estimation.io.stub_true_path_from_observations`
+    so filter/graph code paths see a consistent time axis; **no real positions** exist,
+    so metrics against ``true_x``/``true_y`` are meaningless.  Do **not** use for
+    ``lstm``, ``transformer``, or ``gnn``.
 
-    Args:
-        observations_csv: Path to ``*_observations.csv``.
-        road_graph: Road network graph for map-based methods (ignored by pure filters).
-        methods: e.g. ``["kf", "ukf", "dijkstra"]``.
-        output_hz: Sample rate for the output trajectory timeline (Hz).
-        output_dir: If set and ``plot`` is True, writes ``figures/<method>_path_enu.png``.
-        plot: ENU figure with **estimate + observations only** (no true path line).
-        plot_map: Not supported without real lon/lat ground truth; raises if True.
-        device: Torch device (unused unless extended).
-        seed: RNG seed.
+    Parameters
+    ----------
+    observations_csv : pathlib.Path
+        ``*_observations.csv`` with ``timestamp_s`` and source columns (see IO loaders).
+    road_graph : networkx.MultiDiGraph or compatible
+        Projected street graph for map-matching methods; ignored by pure filters.
+    methods : list of str
+        Lower-case names (e.g. ``["kf","dijkstra","hmm"]``).  Raises if any of
+        ``lstm``, ``transformer``, ``gnn`` appear.
+    output_hz : float, default 1.0
+        Stub timeline sampling rate (Hz).
+    output_dir : pathlib.Path, optional
+        If set and ``plot`` is True, creates ``output_dir/figures/<method>_path_enu.png``.
+    plot : bool, default False
+        If True and ``output_dir`` is set, writes ENU overlays **without** a true path polyline.
+    plot_map : bool, default False
+        Must stay False (no real lon/lat); raises ``ValueError`` otherwise.
+    device : str, optional
+        Passed to neural estimators (unused for filter-only methods).
+    seed : int, default 0
+        RNG seed for stochastic methods.
 
-    Returns:
-        Per method: :class:`EstimationResult`, or ``{"error": "..."}`` on failure.
+    Returns
+    -------
+    dict
+        Keys are method names. Values are :class:`~pegasource.path_estimation.types.EstimationResult`
+        or ``{"error": "<message>"}``.
+
+    Raises
+    ------
+    ValueError
+        If ``plot_map`` is True, or if supervised method names are requested.
     """
     names = [m.strip().lower() for m in methods]
     forbidden = sorted({m for m in names if m in METHODS_REQUIRING_GROUND_TRUTH})
@@ -261,26 +310,39 @@ def evaluate_path_estimation(
     device: Optional[str] = None,
     seed: int = 0,
 ) -> Dict[str, Dict]:
-    """Run path estimation for CSV paths and a caller-supplied road graph.
+    """Load CSVs and run estimators with a **caller-supplied** projected road graph.
 
-    Loads observations and ground truth from disk, then runs each method in
-    ``methods`` using ``road_graph`` for graph-based estimators (Dijkstra, A*,
-    HMM, GNN, …). Filter methods (KF, EKF, …) ignore the graph.
+    Graph-based methods (``dijkstra``, ``astar``, ``hmm``, ``gnn``) use ``road_graph``;
+    filters (``kf``, ``ekf``, ``ukf``, ``particle``) ignore it.  Neural sequence models
+    train against ``true_path_csv``.
 
-    Args:
-        observations_csv: Path to ``*_observations.csv`` (mixed GPS / circle / cell).
-        true_path_csv: Path to ``*_true_path.csv`` (1 Hz ground truth).
-        road_graph: Projected road network (e.g. OSM ``MultiDiGraph`` with ``x``, ``y``,
-            ``crs`` as expected by ``graph_stitch`` / GNN).
-        methods: Method names (e.g. ``["kf", "dijkstra", "gnn"]``). Unknown names raise.
-        output_dir: If set, writes ``metrics.json`` and, when plotting, ``figures/``.
-        plot: Write ENU overlay PNGs under ``output_dir/figures`` when ``output_dir`` is set.
-        plot_map: Write Web Mercator map PNGs when ``output_dir`` is set.
-        device: Torch device string for LSTM / Transformer / GNN.
-        seed: RNG seed for stochastic estimators.
+    Parameters
+    ----------
+    observations_csv : pathlib.Path
+        Event table: must include ``timestamp_s`` and columns per ``source_type``.
+    true_path_csv : pathlib.Path
+        1 Hz (or regular) ground truth: ``timestamp_s``, ``true_x``, ``true_y``, etc.
+    road_graph : networkx.MultiDiGraph
+        Projected OSM-style graph (``x``, ``y`` node attrs, ``crs`` on ``G.graph``).
+    methods : list of str
+        Subset of registered method names; unknown names cause errors inside :func:`_run_methods`.
+    output_dir : pathlib.Path, optional
+        If set, writes ``metrics.json`` and, when ``plot``/``plot_map``, PNGs under ``figures/``.
+    plot : bool, default False
+        Save ENU matplotlib overlays (estimate vs true + observations).
+    plot_map : bool, default False
+        Save Web-Mercator basemap figures (may download tiles; slower).
+    device : str, optional
+        Torch device for ``lstm``, ``transformer``, ``gnn``.
+    seed : int, default 0
+        Base seed for RNGs inside stochastic estimators.
 
-    Returns:
-        Per-method dicts: metric scores and ``meta``, or ``{"error": "..."}`` on failure.
+    Returns
+    -------
+    dict[str, dict]
+        Each key is a method name.  On success, value is a flat dict of metrics from
+        :func:`pegasource.path_estimation.metrics.compute_all_metrics` plus a ``meta`` field;
+        on failure, ``{"error": "<message>"}``.
     """
     obs_df = load_observations_csv(observations_csv)
     true_df = load_true_path_csv(true_path_csv)
@@ -309,7 +371,41 @@ def run_evaluation(
     device: Optional[str] = None,
     seed: int = 0,
 ) -> Dict[str, Dict]:
-    """Run selected methods; write ``metrics.json`` and figures under ``output_dir``."""
+    """Convenience wrapper: load CSVs, obtain default graph, evaluate, write ``output_dir``.
+
+    Calls :func:`pegasource.path_estimation.graph_utils.get_projected_graph` for the same
+    walkable OSM graph used by synthetic data generation (cached under the package).
+
+    Parameters
+    ----------
+    observations_csv : pathlib.Path
+        See :func:`evaluate_path_estimation`.
+    true_path_csv : pathlib.Path
+        See :func:`evaluate_path_estimation`.
+    output_dir : pathlib.Path
+        Created if needed; receives ``metrics.json`` and ``figures/`` when plotting.
+    methods : list of str, optional
+        If ``None``, uses ``list(METHOD_REGISTRY.keys())`` (dijkstra, astar, hmm, kf, ekf,
+        ukf, particle, gnn).  Pass explicit names to add ``lstm`` or ``transformer``.
+    plot : bool, default True
+        Write ENU figures to ``output_dir/figures``.
+    plot_map : bool, default False
+        If True, also writes map tiles figures (requires network for contextily).
+    device : str, optional
+        Torch device for neural estimators.
+    seed : int, default 0
+        RNG seed forwarded to estimators.
+
+    Returns
+    -------
+    dict[str, dict]
+        Same structure as :func:`evaluate_path_estimation`.
+
+    See Also
+    --------
+    evaluate_path_estimation : supply your own ``road_graph``.
+    pegasource.path_estimation.__main__.main : CLI entry (``pegasource-path-estimation``).
+    """
     obs_df = load_observations_csv(observations_csv)
     true_df = load_true_path_csv(true_path_csv)
     G = get_projected_graph()
@@ -330,6 +426,19 @@ def run_evaluation(
 
 
 def print_summary(summary: Dict[str, Dict]) -> None:
+    """Print one line per method: RMSE/MAE or an error string (CLI helper).
+
+    Parameters
+    ----------
+    summary : dict[str, dict]
+        Mapping produced by :func:`run_evaluation` / :func:`evaluate_path_estimation`
+        (or compatible metric dicts).
+
+    Returns
+    -------
+    None
+        Writes to stdout only.
+    """
     for k, v in summary.items():
         if "error" in v:
             print(f"{k}: ERROR — {v['error']}")

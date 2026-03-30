@@ -10,9 +10,28 @@ import numpy as np
 
 @dataclass
 class EstimationResult:
-    """Estimated trajectory on a 1 Hz (or aligned) time grid.
+    """Estimated trajectory on a common time axis (typically 1 Hz).
 
-    Optional fields support uncertainty visualization for probabilistic methods.
+    Coordinates are **east** / **north** meters in the same local ENU frame as the
+    synthetic datasets and CSV loaders.  Filters may populate optional standard
+    deviations or per-step covariance for uncertainty bands.
+
+    Attributes
+    ----------
+    times_s : numpy.ndarray
+        Monotonic timestamps in seconds, shape ``(N,)``.
+    east_m : numpy.ndarray
+        Easting samples, shape ``(N,)``.
+    north_m : numpy.ndarray
+        Northing samples, shape ``(N,)``.
+    std_east_m : numpy.ndarray, optional
+        Marginal std dev east (same length as ``times_s``) if available.
+    std_north_m : numpy.ndarray, optional
+        Marginal std dev north.
+    cov_enu : numpy.ndarray, optional
+        Shape ``(N, 2, 2)`` per-step covariance in ENU if available.
+    meta : dict
+        Free-form metadata (e.g. ``{"method": "kf"}``).
     """
 
     times_s: np.ndarray

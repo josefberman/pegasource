@@ -1,6 +1,6 @@
 # Pegasource Comprehensive Guide
 
-Welcome to the comprehensive guide for **Pegasource** — an offline-capable Python toolkit built for PCAP analysis, geographic functions, and automatic time-series forecasting.
+Welcome to the comprehensive guide for **Pegasource** — an offline-capable Python toolkit for PCAP analysis, geographic functions, time-series forecasting, optional **hardware-inventory clustering**, and **path estimation** from mixed sensor observations.
 
 This guide provides an in-depth look at every module, its purpose, and examples of how to use its functions.
 
@@ -22,6 +22,14 @@ This guide provides an in-depth look at every module, its purpose, and examples 
 4. [Module: Time-Series (`pegasource.timeseries`)](timeseries.md)
    - [Auto Forecaster (SARIMAX & Fallbacks)](timeseries.md#pegasource.timeseries.AutoForecaster)
    - [Utilities](timeseries.md#pegasource.timeseries.detect_seasonality)
+5. [Module: Dataset clustering (`pegasource.dataset_clustering`)](dataset_clustering.md)
+   - [Core pipeline & embeddings](dataset_clustering.md#core-pipeline-python-api)
+   - [CLI & interactive server](dataset_clustering.md#command-line-batch-run)
+   - [iFixit catalog & static viz](dataset_clustering.md#interactive-visualization-server)
+6. [Module: Path estimation (`pegasource.path_estimation`)](path_estimation.md)
+   - [Metrics](path_estimation.md#trajectory-metrics-no-ground-truth-pipeline)
+   - [Evaluation with ground truth](path_estimation.md#evaluation-with-observations-and-true-path)
+   - [Observations only](path_estimation.md#observations-only-no-ground-truth-file)
 
 ---
 
@@ -33,8 +41,12 @@ As Pegasource is designed with an offline-first approach, it relies heavily on l
 # Basic installation
 pip install pegasource
 
-# Development installation
+# Development installation (tests + docs)
 pip install -e ".[dev]"
+
+# Optional feature sets
+pip install -e ".[clustering]"       # dataset clustering: embeddings, FastAPI viz, Excel export
+pip install -e ".[path_estimation]"  # path estimation: torch, filterpy, osmnx, GNN, …
 ```
 
 > **Note**: For live packet capture via `scapy`, root privileges may be required on some systems. Reading existing `.pcap` or `.pcapng` files works without root.
@@ -258,6 +270,101 @@ train, test = train_test_split_ts(data, test_size=0.2)
 # Calculate Root Mean Squared Error
 error = rmse(y_true, y_pred)
 ```
+
+---
+
+## Module: Dataset clustering (`pegasource.dataset_clustering`)
+
+Cluster dirty tabular inventory by **embedding** each row’s text and **agglomerative clustering** in cosine space. Optional **FastAPI** server with a browser UI for threshold tuning, uploads, and **Excel** export. Full details: [dataset_clustering.md](dataset_clustering.md).
+
+### Core pipeline
+
+```python
+from pathlib import Path
+from pegasource.dataset_clustering import (
+    load_data,
+    build_text_representations,
+    generate_embeddings,
+    cluster_embeddings,
+)
+
+df = load_data(str(Path("inventory.csv")))
+texts = build_text_representations(df)
+emb = generate_embeddings(
+    texts,
+    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    batch_size=512,
+    device="cpu",
+)
+labels = cluster_embeddings(emb, threshold=0.3)
+df["cluster_id"] = labels
+```
+
+Install **`[clustering]`** for **sentence-transformers** and the HTTP stack. Very large tables use a **two-phase** (KMeans pre-grouping + agglomerative) strategy automatically.
+
+### CLI and server
+
+```bash
+# Batch CSV → clustered CSV
+python -m pegasource.dataset_clustering.cluster_hardware --input data.csv --output out.csv --threshold 0.3
+
+# Interactive UI (requires [clustering])
+pegasource-cluster-viz --port 8001
+```
+
+Cache **iFixit** device names for richer cluster labels: `python -m pegasource.dataset_clustering.fetch_ifixit_devices`.
+
+---
+
+## Module: Path estimation (`pegasource.path_estimation`)
+
+Reconstruct paths from **observations** and optional **ground-truth** trajectories: graph map-matching (Dijkstra, A*, HMM), filters (KF, EKF, UKF, particle), and optional LSTM / Transformer / GNN (supervised). Full details: [path_estimation.md](path_estimation.md).
+
+### Metrics (lightweight import)
+
+```python
+import numpy as np
+from pegasource.path_estimation.metrics import compute_all_metrics
+
+true_xy = np.array([[0.0, 0.0], [10.0, 0.0]])
+est_xy = true_xy + 0.2
+print(compute_all_metrics(true_xy, est_xy))
+```
+
+### Evaluation with a true path file
+
+```python
+from pathlib import Path
+from pegasource.path_estimation.evaluate import run_evaluation
+
+run_evaluation(
+    observations_csv=Path("run_1_observations.csv"),
+    true_path_csv=Path("run_1_true_path.csv"),
+    output_dir=Path("out"),
+    methods=["dijkstra", "hmm", "kf"],
+    plot=True,
+)
+```
+
+### Observations only
+
+Use **`estimate_paths_only`** when no ground-truth CSV exists (methods **lstm** / **transformer** / **gnn** are disabled; use `run_evaluation` with labels for those).
+
+```python
+from pathlib import Path
+from pegasource.path_estimation import estimate_paths_only
+from pegasource.path_estimation.graph_utils import get_projected_graph
+
+results = estimate_paths_only(
+    Path("observations.csv"),
+    get_projected_graph(),
+    methods=["dijkstra", "kf", "ekf"],
+    output_dir=Path("out_no_gt"),
+    plot=True,
+)
+```
+
+Install **`[path_estimation]`** for the full estimator stack.
 
 ---
 
