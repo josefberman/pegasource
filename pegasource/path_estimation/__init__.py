@@ -1,16 +1,27 @@
 """Trajectory reconstruction from asynchronous observations (local ENU meters).
 
-**Lazy exports** (importing these loads :mod:`pegasource.path_estimation.evaluate` and
-pulls in **filterpy**, **torch**, etc. — use ``pip install -e ".[path_estimation]"``):
+Re-exports :func:`run_evaluation`, :func:`evaluate_path_estimation`, and
+:func:`estimate_paths_only` from :mod:`pegasource.path_estimation.evaluate`, same pattern
+as :mod:`pegasource.pcap` / :mod:`pegasource.geo`.  Requires the optional **path_estimation**
+dependencies (filterpy, torch, …); install with ``pip install -e ".[path_estimation]"``.
 
-- `estimate_paths_only` — no ground-truth CSV; stub timeline only
-- `evaluate_path_estimation` — CSV paths + caller-supplied road graph
-- `run_evaluation` — same as ``evaluate_path_estimation`` but loads the default OSM walk graph
+Because Python loads this file when importing any submodule (e.g.
+``import pegasource.path_estimation.metrics``), loading the package also pulls in
+``evaluate`` and those dependencies.  Previously, lazy :func:`__getattr__` deferred that
+until you accessed ``run_evaluation``; explicit imports match the rest of pegasource at
+the cost of a heavier first import.
 
-**Always-light submodules** (safe without the extra):
+Quick start::
 
-- :mod:`pegasource.path_estimation.metrics` — RMSE, Fréchet, DTW, …
-- :mod:`pegasource.path_estimation.io` — CSV loaders (used by evaluation pipelines)
+    from pegasource.path_estimation import run_evaluation
+    from pathlib import Path
+
+    run_evaluation(
+        Path("obs.csv"),
+        Path("true.csv"),
+        Path("out"),
+        methods=["kf", "dijkstra"],
+    )
 
 Examples
 --------
@@ -21,16 +32,14 @@ Examples
 >>> assert "rmse_m" in out
 """
 
-from __future__ import annotations
+from .evaluate import (
+    estimate_paths_only,
+    evaluate_path_estimation,
+    run_evaluation,
+)
 
-from typing import Any
-
-__all__ = ["estimate_paths_only", "evaluate_path_estimation", "run_evaluation"]
-
-
-def __getattr__(name: str) -> Any:
-    if name in __all__:
-        from . import evaluate
-
-        return getattr(evaluate, name)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+__all__ = [
+    "estimate_paths_only",
+    "evaluate_path_estimation",
+    "run_evaluation",
+]
