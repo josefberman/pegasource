@@ -10,5 +10,5 @@ pegasource.dataset_clustering    Hardware inventory embedding + clustering (opti
 pegasource.path_estimation       GPS/cellular path reconstruction (filters, graph, NN; optional torch stack)
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = ["pcap", "geo", "timeseries", "dataset_clustering", "path_estimation"]
